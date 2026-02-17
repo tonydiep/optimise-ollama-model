@@ -1,6 +1,6 @@
 # Ollama Context Optimizer
 
-A command-line tool to automatically find the largest context size (`num_ctx`) for an Ollama model that fits entirely on your GPU, and then saves the result as a new model.
+A command-line tool to automatically set the largest context size (`num_ctx`) for an Ollama model that fits entirely on your GPU.
 
 ## Overview
 
@@ -13,7 +13,8 @@ The application intelligently manages two separate shell interactions with Ollam
 1.  **An Interactive Shell (`ollama run`)**: The tool sends commands to this shell to incrementally change the model's context size.
 2.  **A Monitoring Shell (`ollama ps`)**: After each change, the tool runs `ollama ps` to check if the model is running on `100% GPU` or if it has been partially offloaded to the `CPU`.
 
-Based on the feedback from the monitoring shell, the binary search algorithm narrows down the range until it finds the highest possible context size that keeps the model exclusively on the GPU. Finally, it uses the `/save` command to create a new, optimized version of your model with this setting baked in.
+Based on the feedback from the monitoring shell, the binary search algorithm narrows down the range until it finds the highest possible context 
+size that keeps the model exclusively on the GPU. Finally, it uses the `/save` command to update your model with this setting baked in.
 
 ## Prerequisites
 
@@ -42,24 +43,20 @@ Based on the feedback from the monitoring shell, the binary search algorithm nar
 
 ## Usage
 
-Run the main script from the command line, specifying the model you want to optimize and a search range for the context size.
+Run the main script from the command line, specifying the model you want to optimize.
 
 ```bash
-python main.py --model [model-name] --min [min-context-size] --max [max-context-size]
+optimise-ollama-model [model-name]
 ```
 
 **Arguments:**
 
-*   `--model`: (Required) The name of the Ollama model you want to optimize (e.g., `llama3:8b`).
-*   `--min`: (Required) The starting lower bound for the context size search (e.g., `4096`).
-*   `--max`: (Required) The starting upper bound for the context size search (e.g., `65536`).
+*   `model-name`: (Required) The name of the Ollama model you want to optimize (e.g., `llama3:8b`).
 
 **Example:**
 
-To find the optimal context size for `qwen3-30b-abliterated-custom` between 4,000 and 80,000, you would run:
-
 ```bash
-python main.py --model qwen3-30b-abliterated-custom --min 4000 --max 80000
+./optimise-ollama-model llama3:8b
 ```
 
-The tool will print its progress as it searches and will notify you upon completion, indicating the name of the newly saved model (e.g., `qwen3-30b-abliterated-custom-optimized`).
+The tool will print its progress as it searches and will notify you upon completion.
