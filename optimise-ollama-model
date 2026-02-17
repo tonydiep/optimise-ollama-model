@@ -1,0 +1,7 @@
+#!/bin/bash
+
+modelname=$1
+d=/home/tonydiep/Projects/optimise-ollama-model/
+
+source "$d"/venv/bin/activate
+python3 "$d"/main.py --model "$modelname"
