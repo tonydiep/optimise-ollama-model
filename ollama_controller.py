@@ -217,6 +217,12 @@ class OllamaController:
             return False
 
     def close(self):
+        # Ensure monitor subprocess is killed if still running
+        if self.monitor_process and self.monitor_process.poll() is None:
+            print(
+                f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Killing monitor subprocess..."
+            )
+            self.monitor_process.kill()
         try:
             # Send exit command to the interactive shell
             command = "/exit"
