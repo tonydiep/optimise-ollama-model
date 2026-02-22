@@ -9,10 +9,11 @@ import os
 class OllamaController:
     def __init__(self, model_name: str):
         self.model_name = model_name
+        self.monitor_process = None
         self.child = pexpect.spawn(f"ollama run {model_name}", timeout=120)
         self.child.expect([">%%", ">>> "])  # Expect the actual prompt
 
-    def set_context(self, size: int) -> bool:
+    def set_context(self, size: int) -> tuple[bool, dict]:
         try:
             # Log what we're sending
             command = f"/set parameter num_ctx {size}"
@@ -31,7 +32,7 @@ class OllamaController:
                 print(
                     f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Timeout waiting for response to: {command}"
                 )
-                return False
+                return (False, {"context_size": None, "processor": None, "success": False})
 
             # Send test message
             test_message = "Hello"
@@ -51,14 +52,25 @@ class OllamaController:
                 print(
                     f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Timeout waiting for response to: {test_message}"
                 )
-                return False
+                return (False, {"context_size": None, "processor": None, "success": False})
 
-            return True
+            # Step 4.5: Validate context with monitor
+            monitor_results = self.monitor_context()
+            if monitor_results and monitor_results["success"]:
+                context_size_match = (monitor_results["context_size"] == size)
+                print(f"[DEBUG] Context size match: {context_size_match}")
+                print(f"[DEBUG] Expected: {size}, Actual: {monitor_results['context_size']}")
+                print(f"[DEBUG] Processor: {monitor_results['processor']}")
+                return (True, monitor_results)
+            else:
+                print("[DEBUG] Monitor validation failed, returning success without results")
+                return (True, {"context_size": None, "processor": None, "success": False})
+
         except pexpect.ExceptionPexpect as e:
             print(
                 f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Exception during set_context: {e}"
             )
-            return False
+            return (False, {"context_size": None, "processor": None, "success": False})
 
     def monitor_context(self) -> dict:
         """

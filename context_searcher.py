@@ -5,9 +5,8 @@ from ollama_monitor import OllamaMonitor
 
 
 class ContextSearcher:
-    def __init__(self, controller: OllamaController, monitor: OllamaMonitor):
+    def __init__(self, controller: OllamaController):
         self.controller = controller
-        self.monitor = monitor
 
     def find_optimal_size(self, min_size: int, max_size: int) -> int:
         # opencode: go back to original approach. it is valid. you _CAN_ change context size after model load.
@@ -40,18 +39,16 @@ class ContextSearcher:
         )
 
         # Set the maximum context size and attempt to run with it
-        if self.controller.set_context(max_size):
-            # Wait a bit for the change to take effect
-            time.sleep(0.5)
-
-            # Check if the model is running on GPU
-            usage = self.monitor.get_processor_usage(self.controller.model_name)
+        success, monitor_results = self.controller.set_context(max_size)
+        if success:
+            # Monitor validation already provides processor info
+            processor = monitor_results.get("processor", "NOT_FOUND")
             print(
-                f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Model usage for max size {max_size}: {usage}"
+                f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Model processor for max size {max_size}: {processor}"
             )
 
             # If the maximum size works correctly on GPU, use it as optimal size
-            if usage == "100% GPU":
+            if processor == "100% GPU":
                 print(
                     f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Maximum size {max_size} works correctly on GPU"
                 )
@@ -77,7 +74,8 @@ class ContextSearcher:
             print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Testing context size: {mid}")
 
             # Set the context size (this is valid now according to comments)
-            if not self.controller.set_context(mid):
+            success, monitor_results = self.controller.set_context(mid)
+            if not success:
                 # If we can't even set the context, skip this size
                 print(
                     f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Failed to set context size {mid}, skipping..."
@@ -85,17 +83,14 @@ class ContextSearcher:
                 high = mid - 1
                 continue
 
-            # Wait a bit for the change to take effect
-            time.sleep(0.5)
-
-            # Check if the model is running on GPU
-            usage = self.monitor.get_processor_usage(self.controller.model_name)
+            # Monitor validation already provides processor info
+            processor = monitor_results.get("processor", "NOT_FOUND")
             print(
-                f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Model usage for size {mid}: {usage}"
+                f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Model processor for size {mid}: {processor}"
             )
 
             # Decision logic based on usage
-            if usage == "100% GPU":
+            if processor == "100% GPU":
                 # This size is good, try a larger size
                 last_good_size = mid
                 low = mid + 1
@@ -106,13 +101,13 @@ class ContextSearcher:
                         f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Early exit condition met, stopping search"
                     )
                     break
-            elif usage == "CPU" or usage == "MIXED":
+            elif processor == "CPU" or processor == "MIXED":
                 # This size is too large, try a smaller size
                 high = mid - 1
             else:
                 # Handle NOT_FOUND case
                 print(
-                    f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Model usage not found for size {mid}, trying smaller size"
+                    f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Model processor not found for size {mid}, trying smaller size"
                 )
                 high = mid - 1
 

@@ -6,7 +6,6 @@ import sys
 import re
 import time
 from ollama_controller import OllamaController
-from ollama_monitor import OllamaMonitor
 from context_searcher import ContextSearcher
 
 
@@ -71,8 +70,7 @@ def main():
     # Initialize components
     timestamped_print(f"Initializing Ollama controller for model: {args.model}")
     controller = OllamaController(args.model)
-    monitor = OllamaMonitor()
-    searcher = ContextSearcher(controller, monitor)
+    searcher = ContextSearcher(controller)
 
     try:
         timestamped_print(f"Starting optimization for model: {args.model}")
