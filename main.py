@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import logging
 import subprocess
 import sys
 import re
@@ -8,15 +9,24 @@ import time
 from ollama_controller import OllamaController
 from context_searcher import ContextSearcher
 
+TIMEFORMAT = "%Y-%m-%d %H:%M:%S"
+DEFAULT_MIN_CONTEXT = 4096
+DEFAULT_MAX_CONTEXT = 1000000
+TIMEOUT_SHOW = 30
 
-def get_model_context_length(model_name):
+logger = logging.getLogger(__name__)
+
+
+def get_model_context_length(model_name: str) -> int | None:
     """Get the maximum context length for a given model"""
     try:
         result = subprocess.run(
-            ["ollama", "show", model_name], capture_output=True, text=True, timeout=30
+            ["ollama", "show", model_name],
+            capture_output=True,
+            text=True,
+            timeout=TIMEOUT_SHOW,
         )
         if result.returncode == 0:
-            # Look for context length in the output
             match = re.search(r"context length\s+(\d+)", result.stdout, re.IGNORECASE)
             if match:
                 return int(match.group(1))
@@ -25,13 +35,7 @@ def get_model_context_length(model_name):
         return None
 
 
-def timestamped_print(message):
-    """Print message with timestamp"""
-    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-    print(f"[{timestamp}] {message}")
-
-
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Ollama Context Optimizer")
     parser.add_argument(
         "--model", required=True, help="The name of the Ollama model to optimize"
@@ -67,36 +71,31 @@ def main():
         print("Error: Minimum context size cannot be greater than maximum context size")
         sys.exit(1)
 
-    # Initialize components
-    timestamped_print(f"Initializing Ollama controller for model: {args.model}")
+    logger.info(f"Initializing Ollama controller for model: {args.model}")
     controller = OllamaController(args.model)
     searcher = ContextSearcher(controller)
 
     try:
-        timestamped_print(f"Starting optimization for model: {args.model}")
-        timestamped_print(f"Searching context size range: {args.min} to {args.max}")
+        logger.info(f"Starting optimization for model: {args.model}")
+        logger.info(f"Searching context size range: {args.min} to {args.max}")
 
-        # Find optimal size
-        timestamped_print("Starting binary search for optimal context size...")
         optimal_size = searcher.find_optimal_size(args.min, args.max)
-        timestamped_print(f"Optimal context size found: {optimal_size}")
+        logger.info(f"Optimal context size found: {optimal_size}")
 
-        # Save the optimized model
-        timestamped_print("Saving optimized model...")
+        logger.info("Saving optimized model...")
         if controller.save_model(optimal_size):
-            timestamped_print(f"Model saved successfully with context size {optimal_size}")
+            logger.info(f"Model saved successfully with context size {optimal_size}")
         else:
-            timestamped_print("Failed to save the model")
+            logger.error("Failed to save the model")
 
     except KeyboardInterrupt:
-        timestamped_print("\nOperation cancelled by user")
+        logger.warning("Operation cancelled by user")
     except Exception as e:
-        timestamped_print(f"Error occurred: {e}")
+        logger.error(f"Error occurred: {e}")
     finally:
-        # Always close the controller
-        timestamped_print("Closing controller...")
+        logger.info("Closing controller...")
         controller.close()
-        timestamped_print("Controller closed.")
+        logger.info("Controller closed.")
 
 
 if __name__ == "__main__":
